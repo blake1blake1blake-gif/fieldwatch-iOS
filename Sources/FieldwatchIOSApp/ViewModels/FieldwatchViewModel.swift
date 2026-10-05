@@ -52,10 +52,21 @@ final class FieldwatchViewModel: ObservableObject {
     }
 
     private func handle(device: RadioDevice) {
-        if let index = devices.firstIndex(where: { $0.id == device.id }) {
-            devices[index] = device
+        let classified = RadioDevice(
+            id: device.id,
+            name: device.name,
+            identifier: device.identifier,
+            kind: device.kind,
+            rssi: device.rssi,
+            lastSeen: device.lastSeen,
+            flags: device.flags,
+            classification: CatalogMatcher.classify(name: device.name, kind: device.kind)
+        )
+
+        if let index = devices.firstIndex(where: { $0.id == classified.id }) {
+            devices[index] = classified
         } else {
-            devices.insert(device, at: 0)
+            devices.insert(classified, at: 0)
         }
     }
 

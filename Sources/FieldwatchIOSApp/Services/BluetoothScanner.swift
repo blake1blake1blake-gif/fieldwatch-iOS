@@ -1,3 +1,4 @@
+import CoreBluetooth
 import Foundation
 
 final class BluetoothScanner: NSObject, CBCentralManagerDelegate {
@@ -50,7 +51,8 @@ final class BluetoothScanner: NSObject, CBCentralManagerDelegate {
             kind: .bluetooth,
             rssi: RSSI.intValue,
             lastSeen: Date(),
-            flags: flags
+            flags: flags,
+            classification: CatalogMatcher.classify(name: rawName, kind: .bluetooth)
         )
 
         if knownPeripherals[identifier] != device {
