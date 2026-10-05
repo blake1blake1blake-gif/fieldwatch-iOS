@@ -25,6 +25,7 @@ enum DeviceFlag: String, CaseIterable {
     case tracker
     case extraAttention
     case named
+    case watched
 }
 
 enum DeviceClassification: String, CaseIterable, Codable {
@@ -39,6 +40,10 @@ enum DeviceClassification: String, CaseIterable, Codable {
     case wearable = "Wearable"
     case wifiAccessPoint = "Wi‑Fi access point"
     case phone = "Phone"
+    case home = "Home"
+    case vehicle = "Vehicle"
+    case publicSafety = "Public safety"
+    case audio = "Audio"
 
     var displayName: String {
         rawValue
