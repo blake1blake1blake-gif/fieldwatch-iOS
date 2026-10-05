@@ -1,54 +1,44 @@
-import CoreBluetooth
+import CoreLocation
 import Foundation
 
-final class BluetoothScanner: NSObject, CBCentralManagerDelegate {
-    typealias DeviceHandler = (RadioDevice) -> Void
+final class LocationTracker: NSObject, CLLocationManagerDelegate {
+    typealias LocationHandler = (LocationSample) -> Void
 
-    private let manager: CBCentralManager
-    private let deviceHandler: DeviceHandler
-    private var knownPeripherals: [String: RadioDevice] = [:]
+    private let manager: CLLocationManager
+    private let locationHandler: LocationHandler
 
-    init(deviceHandler: @escaping DeviceHandler) {
-        self.deviceHandler = deviceHandler
-        self.manager = CBCentralManager(delegate: nil, queue: nil)
+    init(locationHandler: @escaping LocationHandler) {
+        self.manager = CLLocationManager()
+        self.locationHandler = locationHandler
         super.init()
         self.manager.delegate = self
+        self.manager.desiredAccuracy = kCLLocationAccuracyNearestTenMeters
     }
 
-    var isScanning: Bool {
-        manager.isScanning
+    func requestAuthorization() {
+        manager.requestWhenInUseAuthorization()
     }
 
-    func startScanning() {
-        guard manager.state == .poweredOn else { return }
-        manager.scanForPeripherals(withServices: nil, options: [CBCentralManagerScanOptionAllowDuplicatesKey: true])
+    func startTracking() {
+        manager.startUpdatingLocation()
     }
 
-    func stopScanning() {
-        manager.stopScan()
+    func stopTracking() {
+        manager.stopUpdatingLocation()
     }
 
-    func centralManagerDidUpdateState(_ central: CBCentralManager) {
-        if central.state == .poweredOn {
-            startScanning()
-        }
-    }
-
-    func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData: [String: Any], rssi RSSI: NSNumber) {
-        let name = peripheral.name ?? (advertisementData[CBAdvertisementDataLocalNameKey] as? String) ?? "Unknown device"
-        let identifier = peripheral.identifier.uuidString
-        let device = RadioDevice(
-            id: identifier,
-            name: name,
-            identifier: identifier,
-            kind: .bluetooth,
-            rssi: RSSI.intValue,
-            lastSeen: Date()
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        guard let location = locations.last else { return }
+        let sample = LocationSample(
+            id: UUID(),
+            latitude: location.coordinate.latitude,
+            longitude: location.coordinate.longitude,
+            timestamp: Date()
         )
+        locationHandler(sample)
+    }
 
-        if knownPeripherals[identifier] == nil || knownPeripherals[identifier] != device {
-            knownPeripherals[identifier] = device
-            deviceHandler(device)
-        }
+    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        print("Location error: \(error.localizedDescription)")
     }
 }

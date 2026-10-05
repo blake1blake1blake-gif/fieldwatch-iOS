@@ -1,134 +1,30 @@
-import SwiftUI
+import Foundation
 
-struct ContentView: View {
-    @ObservedObject var viewModel: FieldwatchViewModel
-
-    var body: some View {
-        TabView {
-            LiveView(viewModel: viewModel)
-                .tabItem {
-                    Label("Live", systemImage: "dot.radiowaves.left.and.right")
-                }
-
-            ReportsView(viewModel: viewModel)
-                .tabItem {
-                    Label("Reports", systemImage: "chart.line.uptrend.xyaxis")
-                }
-
-            SettingsView(viewModel: viewModel)
-                .tabItem {
-                    Label("Settings", systemImage: "gearshape")
-                }
-        }
-        .tint(.cyan)
-    }
+struct RadioDevice: Identifiable, Equatable {
+    let id: String
+    let name: String
+    let identifier: String
+    let kind: RadioKind
+    let rssi: Int
+    let lastSeen: Date
+    let flags: Set<DeviceFlag>
 }
 
-struct LiveView: View {
-    @ObservedObject var viewModel: FieldwatchViewModel
-
-    var body: some View {
-        NavigationStack {
-            List(viewModel.devices) { device in
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack {
-                        Text(device.name)
-                            .font(.headline)
-                        Spacer()
-                        Text(device.kind.rawValue)
-                            .font(.caption)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(Color.cyan.opacity(0.2))
-                            .clipShape(Capsule())
-                    }
-
-                    Text(device.identifier)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-
-                    HStack {
-                        Label("RSSI \(device.rssi)", systemImage: "wifi")
-                        Spacer()
-                        Label(device.lastSeen.formatted(date: .omitted, time: .shortened), systemImage: "clock")
-                    }
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                }
-                .padding(.vertical, 4)
-            }
-            .navigationTitle("Fieldwatch")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(viewModel.isScanning ? "Stop" : "Scan") {
-                        if viewModel.isScanning {
-                            viewModel.stopScanning()
-                        } else {
-                            viewModel.startScanning()
-                        }
-                    }
-                    .buttonStyle(.borderedProminent)
-                }
-            }
-        }
-    }
+enum RadioKind: String, CaseIterable {
+    case wifi = "Wi‑Fi"
+    case bluetooth = "BLE"
+    case unknown = "Unknown"
 }
 
-struct ReportsView: View {
-    @ObservedObject var viewModel: FieldwatchViewModel
-
-    var body: some View {
-        NavigationStack {
-            VStack(alignment: .leading, spacing: 16) {
-                Text("Path")
-                    .font(.title2)
-                    .bold()
-
-                Text("Observed GPS points: \(viewModel.locationSamples.count)")
-                    .foregroundStyle(.secondary)
-
-                Text("Detected devices: \(viewModel.devices.count)")
-                    .foregroundStyle(.secondary)
-
-                Spacer()
-            }
-            .padding()
-            .navigationTitle("Reports")
-        }
-    }
+enum DeviceFlag: String, CaseIterable {
+    case tracker
+    case extraAttention
+    case named
 }
 
-struct SettingsView: View {
-    @ObservedObject var viewModel: FieldwatchViewModel
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section("Permissions") {
-                    Button("Request Bluetooth + Location Access") {
-                        viewModel.requestPermissions()
-                    }
-                }
-
-                Section("Status") {
-                    LabeledContent("Scan", value: viewModel.isScanning ? "Running" : "Idle")
-                    LabeledContent("Latitude", value: viewModel.latestLocation?.latitudeString ?? "—")
-                    LabeledContent("Longitude", value: viewModel.latestLocation?.longitudeString ?? "—")
-                }
-            }
-            .navigationTitle("Settings")
-        }
-    }
-}
-
-private extension Optional where Wrapped == LocationSample {
-    var latitudeString: String {
-        guard let self else { return "—" }
-        return String(format: "%.5f", self.latitude)
-    }
-
-    var longitudeString: String {
-        guard let self else { return "—" }
-        return String(format: "%.5f", self.longitude)
-    }
+struct LocationSample: Identifiable, Equatable {
+    let id: UUID
+    let latitude: Double
+    let longitude: Double
+    let timestamp: Date
 }
