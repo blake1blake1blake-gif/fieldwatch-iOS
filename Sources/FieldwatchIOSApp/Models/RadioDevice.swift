@@ -9,6 +9,10 @@ struct RadioDevice: Identifiable, Equatable {
     let lastSeen: Date
     let flags: Set<DeviceFlag>
     let classification: DeviceClassification
+
+    var summary: String {
+        "\(classification.displayName) • \(kind.rawValue)"
+    }
 }
 
 enum RadioKind: String, CaseIterable {

@@ -1,3 +1,4 @@
+import CoreLocation
 import Foundation
 
 @MainActor
@@ -7,11 +8,13 @@ final class FieldwatchViewModel: ObservableObject {
     @Published var isScanning = false
     @Published var latestLocation: LocationSample?
     @Published var settings: FieldwatchSettings
+    @Published var sessions: [DetectionSession] = []
 
     private let bluetoothScanner: BluetoothScanner
     private let locationTracker: LocationTracker
     private let settingsStore = SettingsStore()
     private let filterEngine = FilterEngine()
+    private let observationStore = ObservationStore()
 
     var filteredDevices: [RadioDevice] {
         devices.filter { filterEngine.passes($0, rules: settings) }
@@ -20,6 +23,7 @@ final class FieldwatchViewModel: ObservableObject {
     init() {
         self.settings = settingsStore.load()
         self.latestLocation = nil
+        self.sessions = observationStore.load()
 
         self.bluetoothScanner = BluetoothScanner { [weak self] device in
             self?.handle(device: device)
@@ -43,12 +47,14 @@ final class FieldwatchViewModel: ObservableObject {
         bluetoothScanner.startScanning()
         locationTracker.startTracking()
         isScanning = true
+        appendSessionIfNeeded()
     }
 
     func stopScanning() {
         bluetoothScanner.stopScanning()
         locationTracker.stopTracking()
         isScanning = false
+        finalizeCurrentSession()
     }
 
     private func handle(device: RadioDevice) {
@@ -68,6 +74,10 @@ final class FieldwatchViewModel: ObservableObject {
         } else {
             devices.insert(classified, at: 0)
         }
+
+        if isScanning {
+            appendSessionIfNeeded()
+        }
     }
 
     private func handle(locationSample: LocationSample) {
@@ -76,5 +86,38 @@ final class FieldwatchViewModel: ObservableObject {
         if locationSamples.count > 200 {
             locationSamples.removeFirst(locationSamples.count - 200)
         }
+    }
+
+    private func appendSessionIfNeeded() {
+        guard isScanning else { return }
+        if sessions.last?.endedAt == nil {
+            return
+        }
+
+        let newSession = DetectionSession(
+            id: UUID(),
+            startedAt: Date(),
+            endedAt: nil,
+            observedDeviceCount: max(filteredDevices.count, 0),
+            strongestSignal: filteredDevices.map(\.rssi).max() ?? -120,
+            focus: "Live radio scan"
+        )
+        sessions.append(newSession)
+        observationStore.save(sessions)
+    }
+
+    private func finalizeCurrentSession() {
+        guard var current = sessions.last, current.endedAt == nil else { return }
+        current = DetectionSession(
+            id: current.id,
+            startedAt: current.startedAt,
+            endedAt: Date(),
+            observedDeviceCount: max(filteredDevices.count, 0),
+            strongestSignal: filteredDevices.map(\.rssi).max() ?? -120,
+            focus: current.focus
+        )
+
+        sessions[sessions.count - 1] = current
+        observationStore.save(sessions)
     }
 }
